@@ -54,7 +54,7 @@
     <dependency>
       <groupId>org.99soft.trudeau</groupId>
       <artifactId>org.99soft.trudeau.api</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>0.0.1</version>
     </dependency>
     <dependency>
       <groupId>org.99soft.trudeau</groupId>
