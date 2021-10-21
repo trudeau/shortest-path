@@ -16,15 +16,16 @@ package org.nnsoft.trudeau.shortestpath;
  *   limitations under the License.
  */
 
-import static org.nnsoft.trudeau.utils.Assertions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import org.nnsoft.trudeau.api.VertexPair;
+import org.nnsoft.trudeau.api.PathNotFoundException;
 import org.nnsoft.trudeau.api.WeightedPath;
-import org.nnsoft.trudeau.inmemory.PathNotFoundException;
 import org.nnsoft.trudeau.math.monoid.OrderedMonoid;
+
+import com.google.common.graph.EndpointPair;
 
 /**
  * Represents all shortest paths between all vertex pairs calculated by {@link FloydWarshall} algorithm.
@@ -36,9 +37,9 @@ import org.nnsoft.trudeau.math.monoid.OrderedMonoid;
 public final class AllVertexPairsShortestPath<V, WE, W>
 {
 
-    private final Map<VertexPair<V>, WeightedPath<V, WE, W>> paths = new HashMap<VertexPair<V>, WeightedPath<V, WE, W>>();
+    private final Map<EndpointPair<V>, WeightedPath<V, WE, W>> paths = new HashMap<EndpointPair<V>, WeightedPath<V, WE, W>>();
 
-    private final Map<VertexPair<V>, W> shortestDistances = new HashMap<VertexPair<V>, W>();
+    private final Map<EndpointPair<V>, W> shortestDistances = new HashMap<EndpointPair<V>, W>();
 
     private final OrderedMonoid<W> weightOperations;
 
@@ -57,11 +58,11 @@ public final class AllVertexPairsShortestPath<V, WE, W>
      */
     void addShortestPath( V source, V target, WeightedPath<V, WE, W> weightedPath )
     {
-        source = checkNotNull( source, "Impossible to add a shortest path from a null source" );
-        target = checkNotNull( target, "Impossible to add a shortest path to a null target" );
-        weightedPath = checkNotNull( weightedPath, "Impossible to add a null weightedPath path to a null target" );
+        source = requireNonNull( source, "Impossible to add a shortest path from a null source" );
+        target = requireNonNull( target, "Impossible to add a shortest path to a null target" );
+        weightedPath = requireNonNull( weightedPath, "Impossible to add a null weightedPath path to a null target" );
 
-        paths.put( new VertexPair<V>( source, target ), weightedPath );
+        paths.put( EndpointPair.ordered( source, target ), weightedPath );
     }
 
     /**
@@ -73,10 +74,10 @@ public final class AllVertexPairsShortestPath<V, WE, W>
      */
     public WeightedPath<V, WE, W> findShortestPath( V source, V target )
     {
-        source = checkNotNull( source, "Impossible to add a shortest path from a null source" );
-        target = checkNotNull( target, "Impossible to add a shortest path to a null target" );
+        source = requireNonNull( source, "Impossible to add a shortest path from a null source" );
+        target = requireNonNull( target, "Impossible to add a shortest path to a null target" );
 
-        WeightedPath<V, WE, W> path = paths.get( new VertexPair<V>( source, target ) );
+        WeightedPath<V, WE, W> path = paths.get( EndpointPair.ordered( source, target ) );
 
         if ( path == null )
         {
@@ -93,11 +94,11 @@ public final class AllVertexPairsShortestPath<V, WE, W>
      */
     void addShortestDistance( V source, V target, W distance )
     {
-        source = checkNotNull( source, "Impossible to add a shortest path from a null source" );
-        target = checkNotNull( target, "Impossible to add a shortest path to a null target" );
-        distance = checkNotNull( distance, "Impossible to add a shortest distance with a null distance" );
+        source = requireNonNull( source, "Impossible to add a shortest path from a null source" );
+        target = requireNonNull( target, "Impossible to add a shortest path to a null target" );
+        distance = requireNonNull( distance, "Impossible to add a shortest distance with a null distance" );
 
-        shortestDistances.put( new VertexPair<V>( source, target ), distance );
+        shortestDistances.put( EndpointPair.ordered( source, target ), distance );
     }
 
     /**
@@ -109,15 +110,15 @@ public final class AllVertexPairsShortestPath<V, WE, W>
      */
     W getShortestDistance( V source, V target )
     {
-        source = checkNotNull( source, "Impossible to add a shortest path from a null source" );
-        target = checkNotNull( target, "Impossible to add a shortest path to a null target" );
+        source = requireNonNull( source, "Impossible to add a shortest path from a null source" );
+        target = requireNonNull( target, "Impossible to add a shortest path to a null target" );
 
         if ( source.equals( target ) )
         {
             return weightOperations.identity();
         }
 
-        return shortestDistances.get( new VertexPair<V>( source, target ) );
+        return shortestDistances.get( EndpointPair.ordered( source, target ) );
     }
 
     /**
@@ -129,15 +130,15 @@ public final class AllVertexPairsShortestPath<V, WE, W>
      */
     boolean hasShortestDistance( V source, V target )
     {
-        source = checkNotNull( source, "Impossible to add a shortest path from a null source" );
-        target = checkNotNull( target, "Impossible to add a shortest path to a null target" );
+        source = requireNonNull( source, "Impossible to add a shortest path from a null source" );
+        target = requireNonNull( target, "Impossible to add a shortest path to a null target" );
 
         if ( source.equals( target ) )
         {
             return true;
         }
 
-        return shortestDistances.containsKey( new VertexPair<V>( source, target ) );
+        return shortestDistances.containsKey( EndpointPair.ordered( source, target ) );
     }
 
     @Override

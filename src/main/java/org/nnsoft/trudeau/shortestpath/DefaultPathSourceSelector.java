@@ -16,28 +16,29 @@ package org.nnsoft.trudeau.shortestpath;
  *   limitations under the License.
  */
 
-import static org.nnsoft.trudeau.utils.Assertions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 
-import org.nnsoft.trudeau.api.Graph;
-import org.nnsoft.trudeau.api.Mapper;
-import org.nnsoft.trudeau.api.UndirectedGraph;
-import org.nnsoft.trudeau.api.VertexPair;
+import org.nnsoft.trudeau.api.PredecessorsList;
 import org.nnsoft.trudeau.api.WeightedPath;
-import org.nnsoft.trudeau.inmemory.PredecessorsList;
 import org.nnsoft.trudeau.math.monoid.OrderedMonoid;
+
+import com.google.common.graph.EndpointPair;
+import com.google.common.graph.ValueGraph;
 
 final class DefaultPathSourceSelector<V, WE, W>
     implements PathSourceSelector<V, WE, W>
 {
 
-    private final Graph<V, WE> graph;
+    private final ValueGraph<V, WE> graph;
 
-    private final Mapper<WE, W> weightedEdges;
+    private final Function<WE, W> weightedEdges;
 
-    public DefaultPathSourceSelector( Graph<V, WE> graph, Mapper<WE, W> weightedEdges )
+    public DefaultPathSourceSelector( ValueGraph<V, WE> graph, Function<WE, W> weightedEdges )
     {
         this.graph = graph;
         this.weightedEdges = weightedEdges;
@@ -48,29 +49,31 @@ final class DefaultPathSourceSelector<V, WE, W>
      */
     public <WO extends OrderedMonoid<W>> AllVertexPairsShortestPath<V, WE, W> applyingFloydWarshall( WO weightOperations )
     {
-        weightOperations = checkNotNull( weightOperations, "Floyd-Warshall algorithm can not be applied using null weight operations" );
+        weightOperations = requireNonNull( weightOperations, "Floyd-Warshall algorithm can not be applied using null weight operations" );
 
         AllVertexPairsShortestPath<V, WE, W> shortestPaths = new AllVertexPairsShortestPath<V, WE, W>( weightOperations );
-        Map<VertexPair<V>, V> next = new HashMap<VertexPair<V>, V>();
+        Map<EndpointPair<V>, V> next = new HashMap<EndpointPair<V>, V>();
 
         // init
-        for ( WE we : graph.getEdges() )
+        for ( EndpointPair<V> e : graph.edges() )
         {
-            VertexPair<V> vertexPair = graph.getVertices( we );
-            shortestPaths.addShortestDistance( vertexPair.getHead(), vertexPair.getTail(), weightedEdges.map( we ) );
+            WE we = graph.edgeValue( e.source(), e.target() ).get();
+            W weight = weightedEdges.apply( we );
 
-            if ( graph instanceof UndirectedGraph )
+            shortestPaths.addShortestDistance( e.source(), e.target(), weight );
+
+            if ( !graph.isDirected() )
             {
-                shortestPaths.addShortestDistance( vertexPair.getTail(), vertexPair.getHead(), weightedEdges.map( we ) );
+                shortestPaths.addShortestDistance( e.target(), e.source(), weight );
             }
         }
 
         // run the Floyd-Warshall algorithm.
-        for ( V k : graph.getVertices() )
+        for ( V k : graph.nodes() )
         {
-            for ( V i : graph.getVertices() )
+            for ( V i : graph.nodes() )
             {
-                for ( V j : graph.getVertices() )
+                for ( V j : graph.nodes() )
                 {
                     if ( shortestPaths.hasShortestDistance( i, k ) && shortestPaths.hasShortestDistance( k, j ) )
                     {
@@ -81,7 +84,7 @@ final class DefaultPathSourceSelector<V, WE, W>
                             shortestPaths.addShortestDistance( i, j, newDistance );
 
                             // store the intermediate vertex
-                            next.put( new VertexPair<V>( i, j ), k );
+                            next.put( EndpointPair.ordered( i, j ), k );
                         }
                     }
 
@@ -90,9 +93,9 @@ final class DefaultPathSourceSelector<V, WE, W>
         }
 
         // fills all WeightedPaths
-        for ( V source : graph.getVertices() )
+        for ( V source : graph.nodes() )
         {
-            for ( V target : graph.getVertices() )
+            for ( V target : graph.nodes() )
             {
                 if ( !source.equals( target ) )
                 {
@@ -116,14 +119,14 @@ final class DefaultPathSourceSelector<V, WE, W>
 
     private void pathReconstruction( PredecessorsList<V, WE, W> path,
                                      V source, V target,
-                                     Map<VertexPair<V>, V> next )
+                                     Map<EndpointPair<V>, V> next )
     {
-        V k = next.get( new VertexPair<V>( source, target ) );
+        V k = next.get( EndpointPair.ordered( source, target ) );
         if ( k == null )
         {
             // there is a direct path between a and b
-            WE edge = graph.getEdge( source, target );
-            if ( edge != null )
+            Optional<WE> edge = graph.edgeValue( source, target );
+            if ( edge.isPresent() )
             {
                 path.addPredecessor( target, source );
             }
@@ -140,7 +143,7 @@ final class DefaultPathSourceSelector<V, WE, W>
      */
     public <H extends V> TargetSourceSelector<V, WE, W> from( H source )
     {
-        source = checkNotNull( source, "Shortest path can not be calculated from a null source" );
+        source = requireNonNull( source, "Shortest path can not be calculated from a null source" );
         return new DefaultTargetSourceSelector<V, WE, W>( graph, weightedEdges, source );
     }
 

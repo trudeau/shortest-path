@@ -16,34 +16,34 @@ package org.nnsoft.trudeau.shortestpath;
  *   limitations under the License.
  */
 
-import static org.nnsoft.trudeau.utils.Assertions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import java.util.HashSet;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Function;
 
-import org.nnsoft.trudeau.api.DirectedGraph;
-import org.nnsoft.trudeau.api.Graph;
-import org.nnsoft.trudeau.api.Mapper;
+import org.nnsoft.trudeau.api.PathNotFoundException;
+import org.nnsoft.trudeau.api.PredecessorsList;
 import org.nnsoft.trudeau.api.WeightedPath;
-import org.nnsoft.trudeau.collections.fibonacciheap.FibonacciHeap;
-import org.nnsoft.trudeau.inmemory.PathNotFoundException;
-import org.nnsoft.trudeau.inmemory.PredecessorsList;
 import org.nnsoft.trudeau.math.monoid.OrderedMonoid;
+
+import com.google.common.graph.ValueGraph;
 
 final class DefaultShortestPathAlgorithmSelector<V, WE, W>
     implements ShortestPathAlgorithmSelector<V, WE, W>
 {
 
-    private final Graph<V, WE> graph;
+    private final ValueGraph<V, WE> graph;
 
-    private final Mapper<WE, W> weightedEdges;
+    private final Function<WE, W> weightedEdges;
 
     private final V source;
 
     private final V target;
 
-    public DefaultShortestPathAlgorithmSelector( Graph<V, WE> graph, Mapper<WE, W> weightedEdges, V source, V target )
+    public DefaultShortestPathAlgorithmSelector( ValueGraph<V, WE> graph, Function<WE, W> weightedEdges, V source, V target )
     {
         this.graph = graph;
         this.weightedEdges = weightedEdges;
@@ -56,7 +56,7 @@ final class DefaultShortestPathAlgorithmSelector<V, WE, W>
      */
     public <WO extends OrderedMonoid<W>> HeuristicBuilder<V, WE, W> applyingAStar( WO weightOperations )
     {
-        weightOperations = checkNotNull( weightOperations, "A* algorithm can not be applied using null weight operations" );
+        weightOperations = requireNonNull( weightOperations, "A* algorithm can not be applied using null weight operations" );
         return new DefaultHeuristicBuilder<V, WE, W>( graph, weightedEdges, source, target, weightOperations );
     }
 
@@ -65,12 +65,12 @@ final class DefaultShortestPathAlgorithmSelector<V, WE, W>
      */
     public <WO extends OrderedMonoid<W>> WeightedPath<V, WE, W> applyingDijkstra( WO weightOperations )
     {
-        weightOperations = checkNotNull( weightOperations, "Dijkstra algorithm can not be applied using null weight operations" );
+        weightOperations = requireNonNull( weightOperations, "Dijkstra algorithm can not be applied using null weight operations" );
 
         final ShortestDistances<V, W> shortestDistances = new ShortestDistances<V, W>( weightOperations );
         shortestDistances.setWeight( source, weightOperations.identity() );
 
-        final Queue<V> unsettledNodes = new FibonacciHeap<V>( shortestDistances );
+        final Queue<V> unsettledNodes = new PriorityQueue<V>( shortestDistances );
         unsettledNodes.add( source );
 
         final Set<V> settledNodes = new HashSet<V>();
@@ -90,15 +90,15 @@ final class DefaultShortestPathAlgorithmSelector<V, WE, W>
 
             settledNodes.add( vertex );
 
-            for ( V v : graph.getConnectedVertices( vertex ) )
+            for ( V v : graph.successors( vertex ) )
             {
                 // skip node already settled
                 if ( !settledNodes.contains( v ) )
                 {
-                    WE edge = graph.getEdge( vertex, v );
+                    WE edge = graph.edgeValue( vertex, v ).get();
                     if ( shortestDistances.alreadyVisited( vertex ) )
                     {
-                        W shortDist = weightOperations.append( shortestDistances.getWeight( vertex ), weightedEdges.map( edge ) );
+                        W shortDist = weightOperations.append( shortestDistances.getWeight( vertex ), weightedEdges.apply( edge ) );
 
                         if ( !shortestDistances.alreadyVisited( v )
                                 || weightOperations.compare( shortDist, shortestDistances.getWeight( v ) ) < 0 )
@@ -124,7 +124,7 @@ final class DefaultShortestPathAlgorithmSelector<V, WE, W>
      */
     public <WO extends OrderedMonoid<W>> WeightedPath<V, WE, W> applyingBidirectionalDijkstra( WO weightOperations )
     {
-        weightOperations = checkNotNull( weightOperations, "Bidirectional Dijkstra algorithm can not be applied using null weight operations" );
+        weightOperations = requireNonNull( weightOperations, "Bidirectional Dijkstra algorithm can not be applied using null weight operations" );
 
         final ShortestDistances<V, W> shortestDistancesForward = new ShortestDistances<V, W>( weightOperations );
         shortestDistancesForward.setWeight( source, weightOperations.identity() );
@@ -132,10 +132,10 @@ final class DefaultShortestPathAlgorithmSelector<V, WE, W>
         final ShortestDistances<V, W> shortestDistancesBackwards = new ShortestDistances<V, W>( weightOperations );
         shortestDistancesBackwards.setWeight( target, weightOperations.identity() );
 
-        final Queue<V> openForward = new FibonacciHeap<V>( shortestDistancesForward );
+        final Queue<V> openForward = new PriorityQueue<V>( shortestDistancesForward );
         openForward.add( source );
 
-        final Queue<V> openBackwards = new FibonacciHeap<V>( shortestDistancesBackwards );
+        final Queue<V> openBackwards = new PriorityQueue<V>( shortestDistancesBackwards );
         openBackwards.add( target );
 
         final Set<V> closedForward = new HashSet<V>();
@@ -166,14 +166,14 @@ final class DefaultShortestPathAlgorithmSelector<V, WE, W>
 
             closedForward.add( vertex );
 
-            for ( V v : graph.getConnectedVertices( vertex ) )
+            for ( V v : graph.successors( vertex ) )
             {
                 if ( !closedForward.contains( v ) )
                 {
-                    WE edge = graph.getEdge( vertex, v );
+                    WE edge = graph.edgeValue( vertex, v ).get();
                     if ( shortestDistancesForward.alreadyVisited( vertex ) )
                     {
-                        W shortDist = weightOperations.append( shortestDistancesForward.getWeight( vertex ), weightedEdges.map( edge ) );
+                        W shortDist = weightOperations.append( shortestDistancesForward.getWeight( vertex ), weightedEdges.apply( edge ) );
 
                         if ( !shortestDistancesForward.alreadyVisited( v )
                                 || weightOperations.compare( shortDist, shortestDistancesForward.getWeight( v ) ) < 0 )
@@ -201,16 +201,15 @@ final class DefaultShortestPathAlgorithmSelector<V, WE, W>
 
             closedBackwards.add( vertex );
 
-            Iterable<V> parentsIterable = ( graph instanceof DirectedGraph ? ((DirectedGraph<V, WE>) graph).getInbound( vertex ) : graph.getConnectedVertices( vertex ) );
-
+            Iterable<V> parentsIterable = graph.isDirected() ? graph.predecessors( vertex ) : graph.adjacentNodes( vertex );
             for ( V v : parentsIterable )
             {
                 if ( !closedBackwards.contains( v ) )
                 {
-                    WE edge = graph.getEdge( v, vertex );
+                    WE edge = graph.edgeValue( v, vertex ).get();
                     if ( shortestDistancesBackwards.alreadyVisited( vertex ) )
                     {
-                        W shortDist = weightOperations.append( shortestDistancesBackwards.getWeight( vertex ), weightedEdges.map( edge ) );
+                        W shortDist = weightOperations.append( shortestDistancesBackwards.getWeight( vertex ), weightedEdges.apply( edge ) );
 
                         if ( !shortestDistancesBackwards.alreadyVisited( v )
                                 || weightOperations.compare( shortDist, shortestDistancesBackwards.getWeight( v ) ) < 0 )

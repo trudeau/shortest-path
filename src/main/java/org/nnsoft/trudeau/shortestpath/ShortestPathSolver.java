@@ -16,9 +16,10 @@ package org.nnsoft.trudeau.shortestpath;
  *   limitations under the License.
  */
 
-import static org.nnsoft.trudeau.utils.Assertions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
-import org.nnsoft.trudeau.api.Graph;
+import com.google.common.graph.Graph;
+import com.google.common.graph.ValueGraph;
 
 public final class ShortestPathSolver
 {
@@ -32,9 +33,9 @@ public final class ShortestPathSolver
      * @param graph the input edge-weighted graph
      * @return the caluculated the sortest
      */
-    public static <V, WE, G extends Graph<V, WE>> PathWeightedEdgesBuilder<V, WE> findShortestPath( G graph )
+    public static <V, WE, G extends ValueGraph<V, WE>> PathWeightedEdgesBuilder<V, WE> findShortestPath( G graph )
     {
-        graph = checkNotNull( graph, "Shortest path can not be calculated on null graph" );
+        graph = requireNonNull( graph, "Shortest path can not be calculated on null graph" );
         return new DefaultWeightedEdgesSelector<V, WE>( graph );
     }
 

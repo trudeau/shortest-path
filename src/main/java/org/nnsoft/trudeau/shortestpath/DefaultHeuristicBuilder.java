@@ -16,28 +16,29 @@ package org.nnsoft.trudeau.shortestpath;
  *   limitations under the License.
  */
 
-import static org.nnsoft.trudeau.utils.Assertions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import java.util.HashSet;
+import java.util.Optional;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Function;
 
-import org.nnsoft.trudeau.api.DirectedGraph;
-import org.nnsoft.trudeau.api.Graph;
-import org.nnsoft.trudeau.api.Mapper;
+import org.nnsoft.trudeau.api.PathNotFoundException;
+import org.nnsoft.trudeau.api.PredecessorsList;
 import org.nnsoft.trudeau.api.WeightedPath;
-import org.nnsoft.trudeau.collections.fibonacciheap.FibonacciHeap;
-import org.nnsoft.trudeau.inmemory.PathNotFoundException;
-import org.nnsoft.trudeau.inmemory.PredecessorsList;
 import org.nnsoft.trudeau.math.monoid.OrderedMonoid;
+
+import com.google.common.graph.ValueGraph;
 
 final class DefaultHeuristicBuilder<V, WE, W>
     implements HeuristicBuilder<V, WE, W>
 {
 
-    private final Graph<V, WE> graph;
+    private final ValueGraph<V, WE> graph;
 
-    private final Mapper<WE, W> weightedEdges;
+    private final Function<WE, W> weightedEdges;
 
     private final V start;
 
@@ -45,7 +46,7 @@ final class DefaultHeuristicBuilder<V, WE, W>
 
     private final OrderedMonoid<W> weightOperations;
 
-    public DefaultHeuristicBuilder( Graph<V, WE> graph, Mapper<WE, W> weightedEdges, V source, V target, OrderedMonoid<W> weightOperations )
+    public DefaultHeuristicBuilder( ValueGraph<V, WE> graph, Function<WE, W> weightedEdges, V source, V target, OrderedMonoid<W> weightOperations )
     {
         this.graph = graph;
         this.weightedEdges = weightedEdges;
@@ -59,7 +60,7 @@ final class DefaultHeuristicBuilder<V, WE, W>
      */
     public <H extends Heuristic<V, W>> WeightedPath<V, WE, W> withHeuristic( H heuristic )
     {
-        heuristic = checkNotNull( heuristic, "A* algorithm can not be applied using a null heuristic" );
+        heuristic = requireNonNull( heuristic, "A* algorithm can not be applied using a null heuristic" );
 
         // Cost from start along best known path.
         final ShortestDistances<V, W> gScores = new ShortestDistances<V, W>( weightOperations );
@@ -74,7 +75,7 @@ final class DefaultHeuristicBuilder<V, WE, W>
         final Set<V> closedSet = new HashSet<V>();
 
         // The set of tentative nodes to be evaluated.
-        final Queue<V> openSet = new FibonacciHeap<V>( fScores );
+        final Queue<V> openSet = new PriorityQueue<V>( fScores );
         openSet.add( start );
 
         // The of navigated nodes
@@ -93,15 +94,15 @@ final class DefaultHeuristicBuilder<V, WE, W>
 
             closedSet.add( current );
 
-            Iterable<V> connected = ( graph instanceof DirectedGraph ) ? ( (DirectedGraph<V, WE>) graph ).getOutbound( current )
-                                                                       : graph.getConnectedVertices( current );
+            Iterable<V> connected = graph.isDirected() ? graph.successors( current ) : graph.adjacentNodes( current ) ;
             for ( V v : connected )
             {
                 if ( !closedSet.contains( v ) )
                 {
-                    WE edge = graph.getEdge( current, v );
+                    // no needs to check, the edge exists
+                    Optional<WE> edge = graph.edgeValue( current, v );
                     // note that the weight of current can never be undefined
-                    W tentativeGScore = weightOperations.append( gScores.getWeight( current ), weightedEdges.map( edge ) );
+                    W tentativeGScore = weightOperations.append( gScores.getWeight( current ), weightedEdges.apply( edge.get() ) );
 
                     // if the first condition fails, v has already been visited (its weight is defined)
                     if ( openSet.add( v ) || weightOperations.compare( tentativeGScore, gScores.getWeight( v ) ) < 0 )

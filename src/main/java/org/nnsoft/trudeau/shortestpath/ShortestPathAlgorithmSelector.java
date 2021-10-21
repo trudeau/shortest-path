@@ -17,7 +17,6 @@ package org.nnsoft.trudeau.shortestpath;
  */
 
 import org.nnsoft.trudeau.api.WeightedPath;
-import org.nnsoft.trudeau.inmemory.PathNotFoundException;
 import org.nnsoft.trudeau.math.monoid.OrderedMonoid;
 
 /**

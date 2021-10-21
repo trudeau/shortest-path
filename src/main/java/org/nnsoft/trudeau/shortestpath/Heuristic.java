@@ -23,6 +23,7 @@ package org.nnsoft.trudeau.shortestpath;
  * @param <V> the Graph vertices type
  * @param <W> the weight type
  */
+@FunctionalInterface
 public interface Heuristic<V, W>
 {
 

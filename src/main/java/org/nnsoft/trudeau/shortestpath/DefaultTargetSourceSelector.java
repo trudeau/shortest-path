@@ -16,27 +16,29 @@ package org.nnsoft.trudeau.shortestpath;
  *   limitations under the License.
  */
 
-import static org.nnsoft.trudeau.utils.Assertions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
-import org.nnsoft.trudeau.api.Graph;
-import org.nnsoft.trudeau.api.Mapper;
-import org.nnsoft.trudeau.api.VertexPair;
+import java.util.function.Function;
+
+import org.nnsoft.trudeau.api.PathNotFoundException;
+import org.nnsoft.trudeau.api.PredecessorsList;
 import org.nnsoft.trudeau.api.WeightedPath;
-import org.nnsoft.trudeau.inmemory.PathNotFoundException;
-import org.nnsoft.trudeau.inmemory.PredecessorsList;
 import org.nnsoft.trudeau.math.monoid.OrderedMonoid;
+
+import com.google.common.graph.EndpointPair;
+import com.google.common.graph.ValueGraph;
 
 final class DefaultTargetSourceSelector<V, WE, W>
     implements TargetSourceSelector<V, WE, W>
 {
 
-    private final Graph<V, WE> graph;
+    private final ValueGraph<V, WE> graph;
 
-    private final Mapper<WE, W> weightedEdges;
+    private final Function<WE, W> weightedEdges;
 
     private final V source;
 
-    public DefaultTargetSourceSelector( Graph<V, WE> graph, Mapper<WE, W> weightedEdges, V source )
+    public DefaultTargetSourceSelector( ValueGraph<V, WE> graph, Function<WE, W> weightedEdges, V source )
     {
         this.graph = graph;
         this.weightedEdges = weightedEdges;
@@ -48,7 +50,7 @@ final class DefaultTargetSourceSelector<V, WE, W>
      */
     public <WO extends OrderedMonoid<W>> AllVertexPairsShortestPath<V, WE, W> applyingBelmannFord( WO weightOperations )
     {
-        weightOperations = checkNotNull( weightOperations, "Belmann-Ford algorithm can not be applied using null weight operations" );
+        weightOperations = requireNonNull( weightOperations, "Belmann-Ford algorithm can not be applied using null weight operations" );
 
         final ShortestDistances<V, W> shortestDistances = new ShortestDistances<V, W>( weightOperations );
         shortestDistances.setWeight( source, weightOperations.identity() );
@@ -57,15 +59,15 @@ final class DefaultTargetSourceSelector<V, WE, W>
 
         for ( int i = 0; i < graph.getOrder(); i++ )
         {
-            for ( WE edge : graph.getEdges() )
+            for ( EndpointPair<V> edge : graph.edges() )
             {
-                VertexPair<V> vertexPair = graph.getVertices( edge );
-                V u = vertexPair.getHead();
-                V v = vertexPair.getTail();
+                V u = edge.nodeU();
+                V v = edge.nodeV();
 
                 if ( shortestDistances.alreadyVisited( u ) )
                 {
-                    W shortDist = weightOperations.append( shortestDistances.getWeight( u ), weightedEdges.map( edge ) );
+                    WE we = graph.edgeValue( u, v ).get();
+                    W shortDist = weightOperations.append( shortestDistances.getWeight( u ), weightedEdges.apply( we ) );
 
                     if ( !shortestDistances.alreadyVisited( v )
                             || weightOperations.compare( shortDist, shortestDistances.getWeight( v ) ) < 0 )
@@ -80,15 +82,15 @@ final class DefaultTargetSourceSelector<V, WE, W>
             }
         }
 
-        for ( WE edge : graph.getEdges() )
+        for ( EndpointPair<V> edge : graph.edges() )
         {
-            VertexPair<V> vertexPair = graph.getVertices( edge );
-            V u = vertexPair.getHead();
-            V v = vertexPair.getTail();
+            V u = edge.nodeU();
+            V v = edge.nodeV();
 
             if ( shortestDistances.alreadyVisited( u ) )
             {
-                W shortDist = weightOperations.append( shortestDistances.getWeight( u ), weightedEdges.map( edge ) );
+                WE we = graph.edgeValue( u, v ).get();
+                W shortDist = weightOperations.append( shortestDistances.getWeight( u ), weightedEdges.apply( we ) );
 
                 if ( !shortestDistances.alreadyVisited( v )
                         || weightOperations.compare( shortDist, shortestDistances.getWeight( v ) ) < 0 )
@@ -102,7 +104,7 @@ final class DefaultTargetSourceSelector<V, WE, W>
 
         AllVertexPairsShortestPath<V, WE, W> allVertexPairsShortestPath = new AllVertexPairsShortestPath<V, WE, W>( weightOperations );
 
-        for ( V target : graph.getVertices() )
+        for ( V target : graph.nodes() )
         {
             if ( !source.equals( target ) )
             {
@@ -126,7 +128,7 @@ final class DefaultTargetSourceSelector<V, WE, W>
      */
     public <T extends V> ShortestPathAlgorithmSelector<V, WE, W> to( T target )
     {
-        target = checkNotNull( target, "Shortest path can not be calculated to a null target" );
+        target = requireNonNull( target, "Shortest path can not be calculated to a null target" );
         return new DefaultShortestPathAlgorithmSelector<V, WE, W>( graph, weightedEdges, source, target );
     }
 

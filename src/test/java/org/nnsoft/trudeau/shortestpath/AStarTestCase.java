@@ -22,17 +22,16 @@ import static org.nnsoft.trudeau.shortestpath.ShortestPathSolver.findShortestPat
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.junit.Test;
-import org.nnsoft.trudeau.api.Graph;
+import org.nnsoft.trudeau.api.InMemoryWeightedPath;
 import org.nnsoft.trudeau.api.Path;
-import org.nnsoft.trudeau.inmemory.InMemoryWeightedPath;
-import org.nnsoft.trudeau.inmemory.PathNotFoundException;
-import org.nnsoft.trudeau.inmemory.UndirectedMutableGraph;
-import org.nnsoft.trudeau.inmemory.labeled.BaseLabeledVertex;
-import org.nnsoft.trudeau.inmemory.labeled.BaseLabeledWeightedEdge;
-import org.nnsoft.trudeau.inmemory.labeled.BaseWeightedEdge;
+import org.nnsoft.trudeau.api.PathNotFoundException;
 import org.nnsoft.trudeau.math.monoid.primitive.DoubleWeightBaseOperations;
+
+import com.google.common.graph.MutableValueGraph;
+import com.google.common.graph.ValueGraphBuilder;
 
 public final class AStarTestCase
 {
@@ -40,22 +39,21 @@ public final class AStarTestCase
     @Test( expected = NullPointerException.class )
     public void testNullGraph()
     {
-        findShortestPath( (Graph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>>) null )
-            .whereEdgesHaveWeights( new BaseWeightedEdge<Double>() )
+        findShortestPath( null )
+            .whereEdgesAreWeights()
             .from( null )
             .to( null )
-            .applyingAStar( new DoubleWeightBaseOperations() )
+            .applyingAStar( null )
             .withHeuristic( null );
     }
 
     @Test( expected = NullPointerException.class )
     public void testNullVertices()
     {
-        UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>> graph =
-            new UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>>();
+        final MutableValueGraph<String, Double> graph = ValueGraphBuilder.undirected().build();
 
         findShortestPath( graph )
-            .whereEdgesHaveWeights( new BaseWeightedEdge<Double>() )
+            .whereEdgesAreWeights()
             .from( null )
             .to( null )
             .applyingAStar( new DoubleWeightBaseOperations() )
@@ -65,13 +63,12 @@ public final class AStarTestCase
     @Test( expected = NullPointerException.class )
     public void testNullHeuristic()
     {
-        UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>> graph =
-            new UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>>();
+        final MutableValueGraph<String, Double> graph = ValueGraphBuilder.undirected().build();
 
         findShortestPath( graph )
-            .whereEdgesHaveWeights( new BaseWeightedEdge<Double>() )
-            .from( new BaseLabeledVertex( "a" ) )
-            .to( new BaseLabeledVertex( "b" ) )
+            .whereEdgesAreWeights()
+            .from( "a" )
+            .to( "b" )
             .applyingAStar( new DoubleWeightBaseOperations() )
             .withHeuristic( null );
     }
@@ -79,28 +76,19 @@ public final class AStarTestCase
     @Test( expected = NullPointerException.class )
     public void testNullMonoid()
     {
-        UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>> graph =
-            new UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>>();
+        final MutableValueGraph<String, Double> graph = ValueGraphBuilder.undirected().build();
 
-        final BaseLabeledVertex a = new BaseLabeledVertex( "a" );
-        final BaseLabeledVertex b = new BaseLabeledVertex( "b" );
-        final Map<BaseLabeledVertex, Double> heuristics = new HashMap<BaseLabeledVertex, Double>();
-        Heuristic<BaseLabeledVertex, Double> heuristic = null;
+        final String a = "a";
+        final String b = "b";
+        final Map<String, Double> heuristics = new HashMap<String, Double>();
+        Heuristic<String, Double> heuristic = null;
 
         try
         {
-            graph.addVertex( a );
-            graph.addVertex( b );
+            graph.addNode( a );
+            graph.addNode( b );
 
-            heuristic = new Heuristic<BaseLabeledVertex, Double>()
-            {
-
-                public Double applyHeuristic( BaseLabeledVertex current, BaseLabeledVertex goal )
-                {
-                    return heuristics.get( current );
-                }
-
-            };
+            heuristic = ( current, goal ) -> heuristics.get( current );
         }
         catch ( NullPointerException e )
         {
@@ -108,7 +96,7 @@ public final class AStarTestCase
         }
 
         findShortestPath( graph )
-            .whereEdgesHaveWeights( new BaseWeightedEdge<Double>() )
+            .whereEdgesAreWeights()
             .from( a )
             .to( b )
             .applyingAStar( null )
@@ -118,28 +106,19 @@ public final class AStarTestCase
     @Test( expected = PathNotFoundException.class )
     public void testNotConnectGraph()
     {
-        UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>> graph =
-            new UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>>();
+        final MutableValueGraph<String, Double> graph = ValueGraphBuilder.undirected().build();
 
-        final BaseLabeledVertex a = new BaseLabeledVertex( "a" );
-        final BaseLabeledVertex b = new BaseLabeledVertex( "b" );
-        graph.addVertex( a );
-        graph.addVertex( b );
+        final String a = "a";
+        final String b = "b";
+        graph.addNode( a );
+        graph.addNode( b );
 
-        final Map<BaseLabeledVertex, Double> heuristics = new HashMap<BaseLabeledVertex, Double>();
+        final Map<String, Double> heuristics = new HashMap<String, Double>();
 
-        Heuristic<BaseLabeledVertex, Double> heuristic = new Heuristic<BaseLabeledVertex, Double>()
-        {
-
-            public Double applyHeuristic( BaseLabeledVertex current, BaseLabeledVertex goal )
-            {
-                return heuristics.get( current );
-            }
-
-        };
+        Heuristic<String, Double> heuristic = ( current, goal ) -> heuristics.get( current );
 
         findShortestPath( graph )
-            .whereEdgesHaveWeights( new BaseWeightedEdge<Double>() )
+            .whereEdgesAreWeights()
             .from( a )
             .to( b )
             .applyingAStar( new DoubleWeightBaseOperations() )
@@ -153,40 +132,39 @@ public final class AStarTestCase
     @Test
     public void findShortestPathAndVerify()
     {
-        UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>> graph =
-            new UndirectedMutableGraph<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>>();
+        final MutableValueGraph<String, Double> graph = ValueGraphBuilder.undirected().build();
 
         // building Graph
 
-        BaseLabeledVertex start = new BaseLabeledVertex( "start" );
-        BaseLabeledVertex a = new BaseLabeledVertex( "a" );
-        BaseLabeledVertex b = new BaseLabeledVertex( "b" );
-        BaseLabeledVertex c = new BaseLabeledVertex( "c" );
-        BaseLabeledVertex d = new BaseLabeledVertex( "d" );
-        BaseLabeledVertex e = new BaseLabeledVertex( "e" );
-        BaseLabeledVertex goal = new BaseLabeledVertex( "goal" );
+        String start = "start";
+        String a = "a";
+        String b = "b";
+        String c = "c";
+        String d = "d";
+        String e = "e";
+        String goal = "goal";
 
-        graph.addVertex( start );
-        graph.addVertex( a );
-        graph.addVertex( b );
-        graph.addVertex( c );
-        graph.addVertex( d );
-        graph.addVertex( e );
-        graph.addVertex( goal );
+        graph.addNode( start );
+        graph.addNode( a );
+        graph.addNode( b );
+        graph.addNode( c );
+        graph.addNode( d );
+        graph.addNode( e );
+        graph.addNode( goal );
 
-        graph.addEdge( start, new BaseLabeledWeightedEdge<Double>( "start <-> a", 1.5D ), a );
-        graph.addEdge( start, new BaseLabeledWeightedEdge<Double>( "start <-> d", 2D ), d );
+        graph.putEdgeValue( start, a, 1.5D );
+        graph.putEdgeValue( start, d, 2D );
 
-        graph.addEdge( a, new BaseLabeledWeightedEdge<Double>( "a <-> b", 2D ), b );
-        graph.addEdge( b, new BaseLabeledWeightedEdge<Double>( "b <-> c", 3D ), c );
-        graph.addEdge( c, new BaseLabeledWeightedEdge<Double>( "c <-> goal", 3D ), goal );
+        graph.putEdgeValue( a, b, 2D );
+        graph.putEdgeValue( b, c, 3D );
+        graph.putEdgeValue( c, goal, 3D );
 
-        graph.addEdge( d, new BaseLabeledWeightedEdge<Double>( "d <-> e", 3D ), e );
-        graph.addEdge( e, new BaseLabeledWeightedEdge<Double>( "e <-> goal", 2D ), goal );
+        graph.putEdgeValue( d, e, 3D );
+        graph.putEdgeValue( e, goal, 2D );
 
         // euristics
 
-        final Map<BaseLabeledVertex, Double> heuristics = new HashMap<BaseLabeledVertex, Double>();
+        final Map<String, Double> heuristics = new HashMap<String, Double>();
         heuristics.put( a, 4D );
         heuristics.put( b, 2D );
         heuristics.put( c, 4D );
@@ -194,10 +172,10 @@ public final class AStarTestCase
         heuristics.put( e, 2D );
         heuristics.put( goal, 6D );
 
-        Heuristic<BaseLabeledVertex, Double> heuristic = new Heuristic<BaseLabeledVertex, Double>()
+        Heuristic<String, Double> heuristic = new Heuristic<String, Double>()
         {
 
-            public Double applyHeuristic( BaseLabeledVertex current, BaseLabeledVertex goal )
+            public Double applyHeuristic( String current, String goal )
             {
                 return heuristics.get( current );
             }
@@ -206,19 +184,21 @@ public final class AStarTestCase
 
         // expected path
 
-        InMemoryWeightedPath<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>, Double> expected =
-            new InMemoryWeightedPath<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>, Double>( start, goal, new DoubleWeightBaseOperations(), new BaseWeightedEdge<Double>() );
+        Function<Double, Double> identity = we -> we;
 
-        expected.addConnectionInTail( start, new BaseLabeledWeightedEdge<Double>( "start <-> a", 1.5D ), a );
-        expected.addConnectionInTail( a, new BaseLabeledWeightedEdge<Double>( "a <-> b", 2D ), b );
-        expected.addConnectionInTail( b, new BaseLabeledWeightedEdge<Double>( "b <-> c", 3D ), c );
-        expected.addConnectionInTail( c, new BaseLabeledWeightedEdge<Double>( "c <-> goal", 3D ), goal );
+        InMemoryWeightedPath<String, Double, Double> expected =
+            new InMemoryWeightedPath<String, Double, Double>( start, goal, new DoubleWeightBaseOperations(), identity );
+
+        expected.addConnectionInTail( start, 1.5D, a );
+        expected.addConnectionInTail( a, 2D, b );
+        expected.addConnectionInTail( b, 3D, c );
+        expected.addConnectionInTail( c, 3D, goal );
 
         // actual path
 
-        Path<BaseLabeledVertex, BaseLabeledWeightedEdge<Double>> actual =
+        Path<String, Double> actual =
             findShortestPath( graph )
-                .whereEdgesHaveWeights( new BaseWeightedEdge<Double>() )
+                .whereEdgesAreWeights()
                 .from( start )
                 .to( goal )
                 .applyingAStar( new DoubleWeightBaseOperations() )

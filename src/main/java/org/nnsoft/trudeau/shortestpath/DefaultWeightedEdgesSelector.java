@@ -16,25 +16,33 @@ package org.nnsoft.trudeau.shortestpath;
  *   limitations under the License.
  */
 
-import static org.nnsoft.trudeau.utils.Assertions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
-import org.nnsoft.trudeau.api.Graph;
-import org.nnsoft.trudeau.api.Mapper;
+import java.util.function.Function;
+
+import com.google.common.graph.ValueGraph;
 
 public final class DefaultWeightedEdgesSelector<V, WE>
     implements PathWeightedEdgesBuilder<V, WE>
 {
 
-    private final Graph<V, WE> graph;
+    private final ValueGraph<V, WE> graph;
 
-    public DefaultWeightedEdgesSelector( Graph<V, WE> graph )
+    public DefaultWeightedEdgesSelector( ValueGraph<V, WE> graph )
     {
         this.graph = graph;
     }
 
-    public <W, M extends Mapper<WE, W>> PathSourceSelector<V, WE, W> whereEdgesHaveWeights( M weightedEdges )
+    @Override
+    public PathSourceSelector<V, WE, WE> whereEdgesAreWeights()
     {
-        weightedEdges = checkNotNull( weightedEdges, "Function to calculate edges weight can not be null." );
+        Function<WE, WE> identity = we -> we;
+        return whereEdgesHaveWeights( identity );
+    }
+
+    public <W, M extends Function<WE, W>> PathSourceSelector<V, WE, W> whereEdgesHaveWeights( M weightedEdges )
+    {
+        weightedEdges = requireNonNull( weightedEdges, "Function to calculate edges weight can not be null." );
         return new DefaultPathSourceSelector<V, WE, W>( graph, weightedEdges );
     }
 
